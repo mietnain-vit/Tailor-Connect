@@ -145,6 +145,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setCurrentUser(userData)
             localStorage.setItem('currentUser', JSON.stringify(userData))
             toast.success('Login successful (local)')
+            // if login user is a tailor, ensure tailor profile exists
+            try {
+              if (acc.role === USER_ROLES.TAILOR) {
+                const mod = await import('@/utils/mockData')
+                const existing = JSON.parse(localStorage.getItem('user-tailors') || '[]')
+                const mockTailors = mod.mockData?.tailors || []
+                const exists = existing.find((t: any) => t.email === email)
+                if (!exists) {
+                  const maxId = Math.max(0, ...mockTailors.map((t: any) => Number(t.id)), ...existing.map((t: any) => Number(t.id)))
+                  const newId = maxId + 1
+                  const tailorProfile = {
+                    id: newId,
+                    name: acc.name,
+                    specialty: 'General',
+                    services: ['Custom Tailoring'],
+                    rating: 4.5,
+                    orders: 0,
+                    experience: '1 year',
+                    priceFrom: 3000,
+                    available: true,
+                    location: acc.location || 'Unknown',
+                    email,
+                  }
+                  existing.push(tailorProfile)
+                  localStorage.setItem('user-tailors', JSON.stringify(existing))
+                }
+              }
+            } catch (e) {
+              // ignore
+            }
             return
           }
         } catch (e) {
@@ -188,9 +218,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try { accounts = accountsRaw ? JSON.parse(accountsRaw) : {} } catch { accounts = {} }
       if (accounts[email]) throw new Error('Account already exists')
       const id = `local-${Date.now()}`
-      accounts[email] = { id, password, name, role }
+      // store full user profile in local-accounts
+      accounts[email] = { id, password, name, role, email }
       localStorage.setItem('local-accounts', JSON.stringify(accounts))
-      toast.success('Account created locally. Please sign in.')
+
+      // Also set the user as the current user and persist so they stay logged in
+      const userData: User = {
+        id: String(id),
+        name,
+        email,
+        role: role as any,
+      }
+      setCurrentUser(userData)
+      localStorage.setItem('currentUser', JSON.stringify(userData))
+
+      toast.success('Account created and signed in locally.')
+      // If user is a tailor, ensure we create a tailor profile for them
+      try {
+        if ((role as any) === USER_ROLES.TAILOR) {
+          const mod = await import('@/utils/mockData')
+          const existing = JSON.parse(localStorage.getItem('user-tailors') || '[]')
+          const mockTailors = mod.mockData?.tailors || []
+          const maxId = Math.max(0, ...mockTailors.map((t: any) => Number(t.id)), ...existing.map((t: any) => Number(t.id)))
+          const newId = maxId + 1
+          const tailorProfile = {
+            id: newId,
+            name,
+            specialty: 'General',
+            services: ['Custom Tailoring'],
+            rating: 4.5,
+            orders: 0,
+            experience: '1 year',
+            priceFrom: 3000,
+            available: true,
+            location: (userData as any).location || 'Unknown',
+            email,
+          }
+          existing.push(tailorProfile)
+          localStorage.setItem('user-tailors', JSON.stringify(existing))
+        }
+      } catch (e) {
+        // ignore errors creating tailor profile
+      }
       return
     } catch (error: any) {
       toast.error(error.message || 'Failed to create account')
@@ -217,6 +286,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const updated = { ...currentUser, ...userData }
       setCurrentUser(updated)
       localStorage.setItem('currentUser', JSON.stringify(updated))
+      // If this is a local account, also persist changes to the local-accounts map
+      try {
+        const accountsRaw = localStorage.getItem('local-accounts')
+        if (accountsRaw) {
+          const accounts = JSON.parse(accountsRaw)
+          const email = (updated as any).email
+          if (email && accounts[email]) {
+            accounts[email] = { ...accounts[email], ...updated }
+            // do not overwrite password unless provided
+            if (!((userData as any).password)) delete accounts[email].password
+            localStorage.setItem('local-accounts', JSON.stringify(accounts))
+          }
+        }
+      } catch (e) {
+        // ignore storage errors
+      }
     }
   }
 

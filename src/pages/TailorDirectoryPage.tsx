@@ -56,13 +56,28 @@ export default function TailorDirectoryPage() {
   const navigate = useNavigate()
 
   const debouncedSearch = useDebounce(searchTerm, 300)
+  const [userTailors, setUserTailors] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem('user-tailors') || '[]') } catch { return [] }
+  })
 
-  const locations = Array.from(new Set(mockData.tailors.map(t => t.location)))
-  const specialties = Array.from(new Set(mockData.tailors.map(t => t.specialty)))
+  useEffect(() => {
+    const handler = () => setUserTailors(JSON.parse(localStorage.getItem('user-tailors') || '[]'))
+    window.addEventListener('tailor-updated', handler as EventListener)
+    window.addEventListener('storage', handler as EventListener)
+    return () => {
+      window.removeEventListener('tailor-updated', handler as EventListener)
+      window.removeEventListener('storage', handler as EventListener)
+    }
+  }, [])
+
+  const allTailors = [...mockData.tailors, ...userTailors]
+
+  const locations = Array.from(new Set(allTailors.map(t => t.location)))
+  const specialties = Array.from(new Set(allTailors.map(t => t.specialty)))
   const dressTypes = ['Shirt','Suit','Dress','Traditional Wear','Wedding Attire','Casual Wear','Designer Wear','Ethnic Fashion']
 
   const filteredTailors = useMemo(() => {
-    let list = mockData.tailors.filter(tailor => {
+  let list = allTailors.filter(tailor => {
       const matchesSearch = 
         tailor.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         tailor.specialty.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
@@ -81,7 +96,7 @@ export default function TailorDirectoryPage() {
 
     // Dress type filter: match by services or specialty
     if (dressType) {
-      list = list.filter(t => (t.services || []).some(s => s.toLowerCase().includes(dressType.toLowerCase())) || t.specialty.toLowerCase().includes(dressType.toLowerCase()))
+      list = list.filter(t => (t.services || []).some((s: string) => s.toLowerCase().includes(dressType.toLowerCase())) || t.specialty.toLowerCase().includes(dressType.toLowerCase()))
     }
 
     // Sorting

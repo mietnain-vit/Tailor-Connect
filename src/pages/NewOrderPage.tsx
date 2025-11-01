@@ -14,8 +14,11 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { mockData } from '@/utils/mockData'
+import { useMemo } from 'react'
 import { getInitials, formatCurrency } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import storage from '@/utils/storage'
+import payments from '@/utils/payments'
 
 interface Tailor {
   id: number
@@ -55,6 +58,8 @@ export default function NewOrderPage() {
   })
 
   const itemType = watch('itemType')
+  const [scheduledDate, setScheduledDate] = useState<string | null>(null)
+  const [depositSelected, setDepositSelected] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -68,7 +73,9 @@ export default function NewOrderPage() {
       const state = (location && (location as any).state) || null
       const stateTailorId = state?.tailorId
       if (stateTailorId) {
-        const t = mockData.tailors.find(x => x.id === Number(stateTailorId))
+        const userTailors = (() => { try { return JSON.parse(localStorage.getItem('user-tailors') || '[]') } catch { return [] } })()
+        const allTailors = [...mockData.tailors, ...userTailors]
+        const t = allTailors.find(x => String(x.id) === String(stateTailorId))
         if (t) {
           setSelectedTailor(t)
           setValue('tailorId', t.id)
@@ -80,7 +87,9 @@ export default function NewOrderPage() {
       const raw = localStorage.getItem('prefill-tailor-id')
       if (raw) {
         const tid = Number(raw)
-        const t = mockData.tailors.find(x => x.id === tid)
+        const userTailors = (() => { try { return JSON.parse(localStorage.getItem('user-tailors') || '[]') } catch { return [] } })()
+        const allTailors = [...mockData.tailors, ...userTailors]
+        const t = allTailors.find(x => x.id === tid)
         if (t) {
           setSelectedTailor(t)
           setValue('tailorId', t.id)
@@ -122,22 +131,35 @@ export default function NewOrderPage() {
   }
 
   const onSubmit = (data: OrderFormData) => {
-    const newOrder = {
-      id: 'ORD-' + String((JSON.parse(localStorage.getItem('orders') || '[]')).length + 1).padStart(3, '0'),
+    const ordersCount = JSON.parse(localStorage.getItem('orders') || '[]').length
+    const newOrderId = 'ORD-' + String(ordersCount + 1).padStart(3, '0')
+    const newOrder: any = {
+      id: newOrderId,
       tailorName: selectedTailor?.name || 'Rajesh Kumar',
       assignedTailorId: selectedTailor?.id ?? null,
       item: data.itemType,
       status: 'pending',
-      date: new Date().toISOString().split('T')[0],
+      date: scheduledDate || new Date().toISOString().split('T')[0],
       amount: 8500,
       progress: 0,
+      images: [],
+      schedule: scheduledDate || null,
+      payment: { deposit: depositSelected ? Math.round(8500 * 0.2) : 0, paid: false }
     }
-    
-    const orders = JSON.parse(localStorage.getItem('orders') || '[]')
-    orders.unshift(newOrder)
-    localStorage.setItem('orders', JSON.stringify(orders))
-    
+
+    storage.addOrder(newOrder)
+
+    // attach any pending images
+    const pendingImgs = storage.getOrderImages('pending')
+    pendingImgs.forEach((img: any) => storage.addOrderImage(newOrderId, img))
+    // clear pending
+    localStorage.removeItem('order-pending-images')
+
     toast.success('Order placed successfully!')
+    if (depositSelected && newOrder.payment?.deposit) {
+      payments.processDeposit(newOrderId, newOrder.payment.deposit)
+      toast.success('Deposit processed (demo)')
+    }
     navigate('/dashboard')
   }
 
@@ -225,7 +247,7 @@ export default function NewOrderPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {mockData.tailors.map((tailor) => (
+                      {(function(){ try { return JSON.parse(localStorage.getItem('user-tailors') || '[]') } catch { return [] } })().concat(mockData.tailors).map((tailor) => (
                         <button
                           key={tailor.id}
                           type="button"
@@ -358,6 +380,38 @@ export default function NewOrderPage() {
                     <p className="text-sm text-muted-foreground mt-4">
                       * Measurements are optional but recommended for a perfect fit
                     </p>
+
+                    <div className="mt-6 border-t pt-4">
+                      <h4 className="font-semibold mb-2">Schedule & Uploads</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="schedule">Preferred Date</Label>
+                          <Input id="schedule" type="date" value={scheduledDate ?? ''} onChange={(e) => setScheduledDate(e.target.value)} className="mt-2" />
+                        </div>
+                        <div>
+                          <Label>Payment</Label>
+                          <div className="mt-2">
+                            <label className="flex items-center gap-2"><input type="checkbox" checked={depositSelected} onChange={(e) => setDepositSelected(e.target.checked)} /> Pay 20% deposit</label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <Label>Upload reference photos</Label>
+                        <input type="file" accept="image/*" multiple onChange={(e) => {
+                          const files = e.target.files
+                          if (!files) return
+                          Array.from(files).forEach(f => {
+                            const reader = new FileReader()
+                            reader.onload = () => {
+                              const data = reader.result as string
+                              storage.addOrderImage('pending', { data, name: f.name, time: new Date().toISOString() })
+                            }
+                            reader.readAsDataURL(f)
+                          })
+                        }} />
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>

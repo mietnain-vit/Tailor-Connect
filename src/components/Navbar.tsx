@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sun, Moon, Menu, X, User, LogOut, Settings, LayoutDashboard } from 'lucide-react'
+import { Sun, Moon, Menu, X, User, LogOut, Settings, LayoutDashboard, Bell } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
 import { Button } from './ui/button'
 import { getInitials } from '@/lib/utils'
+import storage from '@/utils/storage'
 import { cn } from '@/lib/utils'
 
 export default function Navbar() {
@@ -14,7 +15,27 @@ export default function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const { currentUser, logout, isAuthenticated } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const [notifications, setNotifications] = useState<any[]>([])
   const navigate = useNavigate()
+  const notificationsKey = currentUser?.id || currentUser?.role || 'guest'
+
+  useEffect(() => {
+    if (!currentUser) return
+    setNotifications(storage.getNotifications(String(notificationsKey)))
+
+    const reload = () => setNotifications(storage.getNotifications(String(notificationsKey)))
+
+    const onMessage = () => reload()
+    const onOrderMessage = () => reload()
+
+    window.addEventListener('message-sent', onMessage as EventListener)
+    window.addEventListener('order-message-sent', onOrderMessage as EventListener)
+
+    return () => {
+      window.removeEventListener('message-sent', onMessage as EventListener)
+      window.removeEventListener('order-message-sent', onOrderMessage as EventListener)
+    }
+  }, [currentUser, notificationsKey])
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
@@ -77,6 +98,60 @@ export default function Navbar() {
 
             {isAuthenticated ? (
               <div className="relative">
+                <div className="inline-block mr-2 relative">
+                  <Button variant="ghost" size="icon" onClick={() => setUserMenuOpen(!userMenuOpen)} className="ml-2">
+                    <Bell className="h-5 w-5" />
+                    {notifications?.filter(n => !n.read).length > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-destructive text-white rounded-full w-4 h-4 text-xs flex items-center justify-center">
+                        {notifications.filter(n => !n.read).length}
+                      </span>
+                    )}
+                  </Button>
+
+                  {/* Notifications dropdown */}
+                  {userMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-80 rounded-md border bg-card shadow-lg z-50">
+                      <div className="p-3 border-b flex items-center justify-between">
+                        <h4 className="font-semibold">Notifications</h4>
+                        <button
+                          className="text-xs text-muted-foreground"
+                          onClick={() => {
+                            storage.clearNotifications(String(notificationsKey))
+                            setNotifications([])
+                          }}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div className="p-4 text-sm text-muted-foreground">No notifications</div>
+                        ) : (
+                          notifications.slice().reverse().map((n) => (
+                            <button
+                              key={n.id}
+                              onClick={() => {
+                                // mark read
+                                const all = storage.getNotifications(String(notificationsKey))
+                                const updated = all.map((x: any) => x.id === n.id ? { ...x, read: true } : x)
+                                localStorage.setItem(`notifications-${notificationsKey}`, JSON.stringify(updated))
+                                setNotifications(updated)
+                                // navigate if url provided
+                                if (n.url) navigate(n.url)
+                              }}
+                              className="w-full text-left p-3 border-b hover:bg-accent"
+                            >
+                              <div className="text-sm font-medium">{n.title}</div>
+                              <div className="text-xs text-muted-foreground truncate">{n.body}</div>
+                              <div className="text-xs text-muted-foreground mt-1">{new Date(n.time).toLocaleString()}</div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <Button
                   variant="ghost"
                   size="icon"

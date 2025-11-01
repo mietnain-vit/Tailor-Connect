@@ -19,6 +19,7 @@ import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import FAQPage from './pages/FAQPage'
 import NotFoundPage from './pages/NotFoundPage'
+import OrderDetailPage from './pages/OrderDetailPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 function App() {
@@ -52,6 +53,14 @@ function App() {
           element={
             <ProtectedRoute>
               <OrderTrackingPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/:id"
+          element={
+            <ProtectedRoute>
+              <OrderDetailPage />
             </ProtectedRoute>
           }
         />

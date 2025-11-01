@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import DashboardSidebar from '@/components/DashboardSidebar'
+import DashboardOverview from '@/components/DashboardOverview'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import storage from '@/utils/storage'
+import payments from '@/utils/payments'
 
 interface Order {
   id: string
@@ -52,6 +55,36 @@ export default function TailorWorkbenchPage() {
     window.dispatchEvent(new CustomEvent('order-updated', { detail: { orderId: id } }))
   }
 
+  const [quoteOpenFor, setQuoteOpenFor] = useState<string | null>(null)
+  const [quotePrice, setQuotePrice] = useState<number | ''>('')
+  const [quoteDays, setQuoteDays] = useState<number | ''>('')
+  const [quoteMessage, setQuoteMessage] = useState('')
+
+  const sendQuote = (id: string) => {
+    if (!quotePrice || !quoteDays) {
+      toast.error('Please provide price and turnaround days')
+      return
+    }
+    const updated = orders.map(o => o.id === id ? { ...o, quote: { price: Number(quotePrice), days: Number(quoteDays), message: quoteMessage, sentAt: new Date().toISOString() }, status: 'quoted' } : o)
+    persist(updated)
+    // notify customer (demo: recipient 'customer')
+    storage.addNotification('customer', {
+      id: Date.now(),
+      title: `Quote from ${currentUser?.name}`,
+      body: `Price: ${formatCurrency(Number(quotePrice))} • ${quoteDays} days` + (quoteMessage ? ` — ${quoteMessage}` : ''),
+      time: new Date().toISOString(),
+      orderId: id,
+      url: `/orders/${id}`,
+      read: false,
+    })
+    toast.success('Quote sent')
+    setQuoteOpenFor(null)
+    setQuotePrice('')
+    setQuoteDays('')
+    setQuoteMessage('')
+    window.dispatchEvent(new CustomEvent('order-updated', { detail: { orderId: id } }))
+  }
+
   const declineOrder = (id: string) => {
     const updated = orders.map(o => o.id === id ? { ...o, status: 'cancelled' } : o)
     persist(updated)
@@ -91,10 +124,16 @@ export default function TailorWorkbenchPage() {
   return (
     <div className="min-h-screen flex bg-background">
       <DashboardSidebar />
+      {/* Add an overview for tailors */}
+      <div className="hidden lg:block w-0" />
       <main className="flex-1 p-6 lg:p-8">
         <div className="mb-6">
           <h1 className="text-3xl font-serif font-bold">Tailor Workbench</h1>
           <p className="text-muted-foreground">Manage your assigned orders, update progress, upload proofs, and complete work.</p>
+        </div>
+        {/* Overview cards */}
+        <div className="mb-6">
+          <DashboardOverview role="tailor" orders={orders} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

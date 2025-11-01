@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { mockData } from '@/utils/mockData'
+import storage from '@/utils/storage'
 import { getInitials } from '@/lib/utils'
 
 interface Message {
@@ -39,11 +40,11 @@ export default function ChatPage() {
       navigate('/login')
       return
     }
-    
-    const savedMessages = localStorage.getItem(`chat-${selectedChat}`)
+
     if (selectedChat) {
-      if (savedMessages) {
-        setMessages(JSON.parse(savedMessages))
+      const savedMessages = storage.getMessages(selectedChat)
+      if (savedMessages && savedMessages.length > 0) {
+        setMessages(savedMessages)
       } else {
         const chatMessages = mockData.messages?.filter(m => m.chatId === selectedChat) || []
         setMessages(chatMessages as Message[])
@@ -67,10 +68,27 @@ export default function ChatPage() {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
 
-    const updatedMessages = [...messages, newMessage]
+    // persist via storage helper
+    const updatedMessages = storage.addMessage(selectedChat, newMessage)
     setMessages(updatedMessages)
-    localStorage.setItem(`chat-${selectedChat}`, JSON.stringify(updatedMessages))
     setInputMessage('')
+
+    // emit a global event so other parts of the app can react (notifications, timeline)
+    try {
+      window.dispatchEvent(new CustomEvent('message-sent', { detail: { chatId: selectedChat, message: newMessage } }))
+    } catch (e) {
+      // ignore in environments where CustomEvent might not be available
+    }
+
+    // create a simple notification entry for the other party (basic key: 'tailor'|'customer')
+    const recipientKey = newMessage.sender === 'customer' ? 'tailor' : 'customer'
+    storage.addNotification(recipientKey, {
+      id: Date.now(),
+      title: `New message from ${currentUser.name}`,
+      body: newMessage.text,
+      time: new Date().toISOString(),
+      read: false,
+    })
   }
 
   if (!currentUser || !isAuthenticated) return null
