@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [role, setRole] = useState<'customer' | 'tailor'>('customer')
   const { login } = useAuth()
   const navigate = useNavigate()
+  const { currentUser } = useAuth()
 
   const {
     register,
@@ -41,7 +42,10 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       await login(data.email, data.password)
-      navigate('/dashboard')
+      // Prefer role from authenticated user; fallback to selected role from form
+      const role = (currentUser && (currentUser as any).role) || data.role
+      if (role === 'tailor') navigate('/tailor-dashboard')
+      else navigate('/dashboard')
     } catch (error) {
       // Error handled by AuthContext
     }

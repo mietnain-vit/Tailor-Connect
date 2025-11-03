@@ -46,8 +46,9 @@ export default function SignupPage() {
   const onSubmit = async (data: SignupFormData) => {
     try {
       await signup(data.email, data.password, data.name, role)
-      // After signup, navigate to login so user can sign in with credentials
-      navigate('/login')
+      // After signup the user is signed in locally; redirect based on role
+      if (role === 'tailor') navigate('/tailor-dashboard')
+      else navigate('/dashboard')
     } catch (error) {
       // Error handled by AuthContext
     }
