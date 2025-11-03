@@ -250,6 +250,20 @@ For production payments integrate a provider like Stripe:
 - Implement a small server that creates PaymentIntents or Checkout Sessions using your Stripe secret key.
 - On success webhook, update the order state on the server and emit notifications to clients.
 
+This repository now includes a minimal Express server scaffolding (`/server`) that supports both Checkout and PaymentIntents flows and a webhook handler to mark orders paid server-side. Quick notes:
+
+- Configure `server/.env` with:
+	- `STRIPE_SECRET_KEY` — your Stripe secret key
+	- `STRIPE_WEBHOOK_SECRET` — the webhook signing secret (seen in Stripe dashboard)
+	- `CLIENT_URL` — your frontend URL (e.g., http://localhost:5173)
+
+- Endpoints:
+	- `POST /create-checkout-session` — creates a Checkout session (legacy flow)
+	- `POST /create-payment-intent` — creates a PaymentIntent and returns `clientSecret` for Stripe Elements
+	- `POST /webhook` — Stripe webhook endpoint; will mark matching orders (by metadata.orderId) as paid in `server/orders.json` when a successful payment event arrives
+
+Important: In production, do NOT rely on the frontend redirect for final confirmation. Use the webhook event (and verify signatures) to mark payments complete. The server webhook included uses `stripe.webhooks.constructEvent` with `STRIPE_WEBHOOK_SECRET` for verification.
+
 ## 📦 Docker image export (if you can't push to registry)
 
 If you cannot push the built image to a registry from this environment, export it to a tarball and share it for import on another machine:

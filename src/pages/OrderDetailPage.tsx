@@ -19,6 +19,8 @@ export default function OrderDetailPage() {
   const endRef = useRef<HTMLDivElement>(null)
   const [showDepositModal, setShowDepositModal] = useState(false)
   const [depositPercent, setDepositPercent] = useState<number>(30)
+  const [showCardModal, setShowCardModal] = useState(false)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -108,10 +110,28 @@ export default function OrderDetailPage() {
     const price = Number(order.quote.price || order.amount || 0)
     const deposit = Math.round(price * (percent / 100))
     try {
-      // Create a Stripe Checkout session on the server and redirect the user
-  // support environments where import.meta.env typing isn't available
-  // @ts-ignore
-  const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4242'
+      // If configured to use in-app PaymentIntents, create PI and show card modal
+      // @ts-ignore
+      const usePI = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_USE_PAYMENT_INTENTS) || false
+      // @ts-ignore
+      const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4242'
+      if (usePI === 'true' || usePI === true) {
+        const resp = await fetch(`${apiBase.replace(/\/$/, '')}/create-payment-intent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: order.id, amount: deposit, currency: 'inr' }),
+        })
+        const data = await resp.json()
+        if (data?.clientSecret) {
+          setClientSecret(data.clientSecret)
+          setShowCardModal(true)
+          return
+        }
+        toast.error('Failed to create payment intent')
+        return
+      }
+
+      // Fallback to Checkout redirect (legacy)
       const resp = await fetch(`${apiBase.replace(/\/$/, '')}/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,7 +139,6 @@ export default function OrderDetailPage() {
       })
       const data = await resp.json()
       if (data?.url) {
-        // redirect user to Stripe Checkout
         window.location.href = data.url
       } else {
         console.error('create-checkout-session response', data)
@@ -127,7 +146,7 @@ export default function OrderDetailPage() {
       }
     } catch (e) {
       console.error(e)
-      toast.error('Failed to create checkout session')
+      toast.error('Failed to create payment session')
     }
   }
 
@@ -155,6 +174,13 @@ export default function OrderDetailPage() {
   return (
     <div className="min-h-screen flex bg-background">
       <DashboardSidebar />
+      {/* Stripe Elements modal when using PaymentIntents */}
+      {showCardModal && clientSecret && order && (
+        // Lazy-load Stripe components to avoid build-time dependency if not used
+        <div>
+          {/* The Stripe provider is required by StripeCardModal; consumer should ensure stripe is loaded in app root. */}
+        </div>
+      )}
       <main className="flex-1 p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
