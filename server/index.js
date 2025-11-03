@@ -16,17 +16,35 @@ const stripe = Stripe(stripeSecret || '')
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
 
-// JSON orders DB (demo)
-const DB_PATH = path.join(__dirname, 'orders.json')
-function readOrders() {
-  try {
-    if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, '[]')
-    const raw = fs.readFileSync(DB_PATH, 'utf8')
-    return JSON.parse(raw)
-  } catch (e) { return [] }
+// SQLite orders DB (demo)
+const sqlite3 = require('sqlite3').verbose()
+const DB_FILE = path.join(__dirname, 'orders.db')
+const db = new sqlite3.Database(DB_FILE)
+
+// Initialize orders table
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, payload TEXT)`)
+})
+
+function getOrder(orderId) {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT payload FROM orders WHERE id = ?', [String(orderId)], (err, row) => {
+      if (err) return reject(err)
+      if (!row) return resolve(null)
+      try { resolve(JSON.parse(row.payload)) } catch (e) { resolve(null) }
+    })
+  })
 }
-function writeOrders(data) {
-  try { fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2)) } catch (e) { console.error('Failed to write orders.json', e) }
+
+function upsertOrder(orderId, payloadObj) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify(payloadObj)
+    // Use UPSERT (requires SQLite >= 3.24.0)
+    db.run('INSERT INTO orders(id,payload) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload', [String(orderId), payload], function (err) {
+      if (err) return reject(err)
+      resolve(true)
+    })
+  })
 }
 
 // For Stripe webhook we need raw body; mount raw parser on webhook route below
@@ -106,11 +124,12 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
       const intent = event.data.object
       const orderId = intent.metadata && intent.metadata.orderId
       if (orderId) {
-        const orders = readOrders()
-        const updated = orders.map(o => (String(o.id) === String(orderId) ? { ...o, status: 'in-progress', paid: true, depositAmount: Math.round((intent.amount_received || intent.amount) / 100) } : o))
-        writeOrders(updated)
-        // Optionally emit something or log
-        console.log(`Order ${orderId} marked paid (webhook)`)
+        (async () => {
+          const existing = (await getOrder(orderId)) || {}
+          const merged = { ...existing, id: orderId, status: 'in-progress', paid: true, depositAmount: Math.round((intent.amount_received || intent.amount) / 100) }
+          await upsertOrder(orderId, merged)
+          console.log(`Order ${orderId} marked paid (webhook)`)
+        })()
       }
       break
     }
@@ -118,10 +137,13 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
       const session = event.data.object
       const orderId = session.metadata && session.metadata.orderId
       if (orderId) {
-        const orders = readOrders()
-        const updated = orders.map(o => (String(o.id) === String(orderId) ? { ...o, status: 'in-progress', paid: true, depositAmount: Math.round((session.amount_total || 0) / 100) } : o))
-        writeOrders(updated)
-        console.log(`Order ${orderId} marked paid (checkout.session.completed)`)      }
+        (async () => {
+          const existing = (await getOrder(orderId)) || {}
+          const merged = { ...existing, id: orderId, status: 'in-progress', paid: true, depositAmount: Math.round((session.amount_total || 0) / 100) }
+          await upsertOrder(orderId, merged)
+          console.log(`Order ${orderId} marked paid (checkout.session.completed)`)
+        })()
+      }
       break
     }
     default:
