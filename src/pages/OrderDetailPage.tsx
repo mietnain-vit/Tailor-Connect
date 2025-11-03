@@ -17,6 +17,8 @@ export default function OrderDetailPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
+  const [showDepositModal, setShowDepositModal] = useState(false)
+  const [depositPercent, setDepositPercent] = useState<number>(30)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -43,33 +45,26 @@ export default function OrderDetailPage() {
       }
     }
 
-    window.addEventListener('order-message-sent', onOrderMessage as EventListener)
-    return () => window.removeEventListener('order-message-sent', onOrderMessage as EventListener)
-  }, [id, isAuthenticated, navigate])
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  if (!currentUser) return null
-
-  // reload order whenever it changes
-  useEffect(() => {
     const onOrderUpdated = (e: any) => {
       const detail = e?.detail
       if (!detail) return
       if (String(detail.orderId) === String(id)) {
-        const saved = localStorage.getItem('orders')
-        if (saved && id) {
-          const orders = JSON.parse(saved)
+        const saved2 = localStorage.getItem('orders')
+        if (saved2 && id) {
+          const orders = JSON.parse(saved2)
           const found = orders.find((o: any) => o.id === id)
           setOrder(found || null)
         }
       }
     }
+
+    window.addEventListener('order-message-sent', onOrderMessage as EventListener)
     window.addEventListener('order-updated', onOrderUpdated as EventListener)
-    return () => window.removeEventListener('order-updated', onOrderUpdated as EventListener)
-  }, [id])
+    return () => {
+      window.removeEventListener('order-message-sent', onOrderMessage as EventListener)
+      window.removeEventListener('order-updated', onOrderUpdated as EventListener)
+    }
+  }, [id, isAuthenticated, navigate])
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
@@ -107,11 +102,11 @@ export default function OrderDetailPage() {
     })
   }
 
-  const acceptQuote = async () => {
+  // Accept quote with configurable deposit percent
+  const acceptQuote = async (percent: number) => {
     if (!order || !order.quote) return
-    // take a deposit (30% of quoted price) as demo
     const price = Number(order.quote.price || order.amount || 0)
-    const deposit = Math.round(price * 0.3)
+    const deposit = Math.round(price * (percent / 100))
     try {
       await payments.processDeposit(order.id, deposit)
       storage.updateOrder(order.id, { status: 'in-progress', paid: true, depositAmount: deposit, amount: price })
@@ -125,7 +120,8 @@ export default function OrderDetailPage() {
         url: `/orders/${order.id}`,
         read: false,
       })
-      toast?.success?.('Quote accepted — deposit processed')
+      toast.success('Quote accepted — deposit processed')
+      setShowDepositModal(false)
       // refresh local order state
       const saved = localStorage.getItem('orders')
       if (saved) {
@@ -134,7 +130,7 @@ export default function OrderDetailPage() {
         setOrder(found || null)
       }
     } catch (e) {
-      toast?.error?.('Failed to process deposit')
+      toast.error('Failed to process deposit')
     }
   }
 
@@ -190,13 +186,36 @@ export default function OrderDetailPage() {
                           <span className="text-sm text-muted-foreground ml-3">• {order.quote.days} days</span>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <Button onClick={acceptQuote} className="bg-gradient-to-r from-gold-600 to-gold-500">Accept & Pay Deposit</Button>
-                        <Button variant="outline" onClick={rejectQuote}>Reject</Button>
-                      </div>
+                    <div className="flex flex-col gap-2">
+                      <Button onClick={() => setShowDepositModal(true)} className="bg-gradient-to-r from-gold-600 to-gold-500">Accept & Pay Deposit</Button>
+                      <Button variant="outline" onClick={rejectQuote}>Reject</Button>
+                    </div>
                     </div>
                   </CardContent>
                 </Card>
+              )}
+
+              {/* Deposit confirmation modal */}
+              {showDepositModal && order && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/50" onClick={() => setShowDepositModal(false)} />
+                  <div className="bg-card rounded shadow-lg z-60 w-[90%] max-w-md p-6 relative">
+                    <h3 className="text-lg font-semibold mb-2">Confirm Deposit</h3>
+                    <p className="text-sm text-muted-foreground mb-4">You can adjust the deposit percent to pay now. This demo captures the deposit only.</p>
+                    <div className="mb-4">
+                      <label className="block text-sm mb-1">Deposit percent</label>
+                      <input type="number" min={0} max={100} value={depositPercent} onChange={(e) => setDepositPercent(Number(e.target.value || 0))} className="w-full p-2 border rounded" />
+                    </div>
+                    <div className="mb-4">
+                      <div className="text-sm text-muted-foreground">Quoted price: ₹{order.quote.price}</div>
+                      <div className="text-lg font-semibold mt-2">Deposit to pay: ₹{Math.round(Number(order.quote.price || order.amount || 0) * (depositPercent / 100))}</div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowDepositModal(false)}>Cancel</Button>
+                      <Button onClick={() => acceptQuote(depositPercent)} className="bg-gradient-to-r from-gold-600 to-gold-500">Confirm & Pay</Button>
+                    </div>
+                  </div>
+                </div>
               )}
 
             <Card>

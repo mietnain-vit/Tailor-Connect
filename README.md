@@ -224,6 +224,49 @@ npx vercel --prod
 
 - I cannot access your Vercel or GitHub accounts from here. If you want me to finish the deployment I can provide the exact minimal steps or the exact repository secrets names to add, but you'll need to paste the Vercel token and (optionally) org/project ids into your GitHub repo secrets.
 
+## 🖼️ Portfolio uploads (switch to production storage)
+
+Portfolio uploads currently fall back to base64-stored images in localStorage for demo purposes. To use a production upload flow, provide an upload endpoint and set the Vite env var `VITE_UPLOAD_URL`.
+
+Expected upload behavior:
+- The frontend will POST multipart/form-data to the `VITE_UPLOAD_URL` endpoint with field `file`.
+- The endpoint should respond with JSON containing a public URL field (for example `{ "url": "https://cdn.example.com/abcd.jpg" }`).
+- If `VITE_UPLOAD_URL` is not set or the upload fails, the app will fall back to storing the image as a base64 data URL in localStorage.
+
+Example `.env` entry (Vite):
+```
+VITE_UPLOAD_URL=https://your-upload-endpoint.example/upload
+```
+
+Server-side upload endpoint (recommended):
+- Use a server (Express, Serverless function) that accepts multipart/form-data, streams the file to S3/Cloud Storage, then returns `{ "url": "<public-file-url>" }`.
+- Alternatively, implement presigned uploads where the frontend requests a presigned URL, then uploads directly to S3.
+
+## 💳 Deposit & payments (demo)
+
+This project includes a demo payments stub that simulates deposit processing. When a tailor sends a quote, customers can accept and pay a deposit. The UI includes a confirmation modal where customers can set the deposit percent (default 30%) before the demo capture.
+
+For production payments integrate a provider like Stripe:
+- Implement a small server that creates PaymentIntents or Checkout Sessions using your Stripe secret key.
+- On success webhook, update the order state on the server and emit notifications to clients.
+
+## 📦 Docker image export (if you can't push to registry)
+
+If you cannot push the built image to a registry from this environment, export it to a tarball and share it for import on another machine:
+
+PowerShell (export):
+```pwsh
+docker save mietnain-vit/tailor-connect:latest -o tailor-connect-latest.tar
+```
+
+Load on another machine:
+```pwsh
+docker load -i tailor-connect-latest.tar
+docker run -p 8080:80 mietnain-vit/tailor-connect:latest
+```
+
+If you'd like, I can add a GitHub Action to build and push images to Docker Hub or GHCR when you add repository secrets (DOCKER_USERNAME / DOCKER_PASSWORD or GHCR token). I can scaffold that workflow for you.
+
 
 ## 📝 Available Scripts
 
