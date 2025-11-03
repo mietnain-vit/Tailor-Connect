@@ -21,6 +21,7 @@ export default function DashboardSidebar() {
         { to: '/tailor-dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { to: '/tailor-workbench', label: 'Workbench', icon: Package },
         { to: '/orders', label: 'Orders', icon: Package },
+        { to: '/payouts', label: 'Payouts', icon: MapPin },
         { to: '/chat', label: 'Messages', icon: MessageCircle },
         { to: '/profile', label: 'Profile', icon: User },
         { to: '/settings', label: 'Settings', icon: Settings },

@@ -89,6 +89,30 @@ export function addOrderImage(orderId: string, img: { data: string, name?: strin
   return list
 }
 
+// Portfolio helpers for tailors
+export function getPortfolio(tailorId: string) {
+  try { return JSON.parse(localStorage.getItem(`tailor-portfolio-${tailorId}`) || '[]') } catch { return [] }
+}
+
+export function savePortfolio(tailorId: string, items: any[]) {
+  localStorage.setItem(`tailor-portfolio-${tailorId}`, JSON.stringify(items))
+}
+
+export function addPortfolioItem(tailorId: string, item: { id?: number | string, data: string, title?: string, time?: string }) {
+  const list = getPortfolio(tailorId)
+  const entry = { id: item.id ?? Date.now(), data: item.data, title: item.title || '', time: item.time || new Date().toISOString() }
+  list.unshift(entry)
+  savePortfolio(tailorId, list)
+  return list
+}
+
+export function removePortfolioItem(tailorId: string, itemId: number | string) {
+  const list = getPortfolio(tailorId)
+  const updated = list.filter((i: any) => String(i.id) !== String(itemId))
+  savePortfolio(tailorId, updated)
+  return updated
+}
+
 // Reviews
 export function getReviews(tailorId: string) {
   try { return JSON.parse(localStorage.getItem(`tailor-reviews-${tailorId}`) || '[]') } catch { return [] }
@@ -98,6 +122,19 @@ export function addReview(tailorId: string, review: { id: number, rating: number
   const list = getReviews(tailorId)
   list.push({ ...review, time: review.time || new Date().toISOString() })
   localStorage.setItem(`tailor-reviews-${tailorId}`, JSON.stringify(list))
+  return list
+}
+
+// Payouts helpers for tailors
+export function getPayouts(tailorId: string) {
+  try { return JSON.parse(localStorage.getItem(`payouts-${tailorId}`) || '[]') } catch { return [] }
+}
+
+export function recordPayout(tailorId: string, payout: { id?: number | string, amount: number, method?: string, status?: string, time?: string }) {
+  const list = getPayouts(tailorId)
+  const entry = { id: payout.id ?? Date.now(), amount: payout.amount, method: payout.method || 'bank', status: payout.status || 'requested', time: payout.time || new Date().toISOString() }
+  list.unshift(entry)
+  localStorage.setItem(`payouts-${tailorId}`, JSON.stringify(list))
   return list
 }
 export const storage = {
@@ -166,6 +203,12 @@ const fullExport = {
   addOrderImage,
   getReviews,
   addReview,
+  getPortfolio,
+  savePortfolio,
+  addPortfolioItem,
+  removePortfolioItem,
+  getPayouts,
+  recordPayout,
   storage,
   sessionStorage,
 }

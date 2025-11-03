@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/context/AuthContext'
 import storage, { Message } from '@/utils/storage'
+import payments from '@/utils/payments'
+import toast from 'react-hot-toast'
 
 export default function OrderDetailPage() {
   const { id } = useParams()
@@ -51,6 +53,24 @@ export default function OrderDetailPage() {
 
   if (!currentUser) return null
 
+  // reload order whenever it changes
+  useEffect(() => {
+    const onOrderUpdated = (e: any) => {
+      const detail = e?.detail
+      if (!detail) return
+      if (String(detail.orderId) === String(id)) {
+        const saved = localStorage.getItem('orders')
+        if (saved && id) {
+          const orders = JSON.parse(saved)
+          const found = orders.find((o: any) => o.id === id)
+          setOrder(found || null)
+        }
+      }
+    }
+    window.addEventListener('order-updated', onOrderUpdated as EventListener)
+    return () => window.removeEventListener('order-updated', onOrderUpdated as EventListener)
+  }, [id])
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || !id) return
@@ -87,6 +107,58 @@ export default function OrderDetailPage() {
     })
   }
 
+  const acceptQuote = async () => {
+    if (!order || !order.quote) return
+    // take a deposit (30% of quoted price) as demo
+    const price = Number(order.quote.price || order.amount || 0)
+    const deposit = Math.round(price * 0.3)
+    try {
+      await payments.processDeposit(order.id, deposit)
+      storage.updateOrder(order.id, { status: 'in-progress', paid: true, depositAmount: deposit, amount: price })
+      // notify tailor
+      storage.addNotification('tailor', {
+        id: Date.now(),
+        title: `Quote accepted for ${order.id}`,
+        body: `Customer accepted the quote. Deposit ₹${deposit} received.`,
+        time: new Date().toISOString(),
+        orderId: String(order.id),
+        url: `/orders/${order.id}`,
+        read: false,
+      })
+      toast?.success?.('Quote accepted — deposit processed')
+      // refresh local order state
+      const saved = localStorage.getItem('orders')
+      if (saved) {
+        const orders = JSON.parse(saved)
+        const found = orders.find((o: any) => o.id === order.id)
+        setOrder(found || null)
+      }
+    } catch (e) {
+      toast?.error?.('Failed to process deposit')
+    }
+  }
+
+  const rejectQuote = () => {
+    if (!order) return
+    storage.updateOrder(order.id, { status: 'cancelled' })
+    storage.addNotification('tailor', {
+      id: Date.now(),
+      title: `Quote rejected for ${order.id}`,
+      body: `Customer rejected the quote.`,
+      time: new Date().toISOString(),
+      orderId: String(order.id),
+      url: `/orders/${order.id}`,
+      read: false,
+    })
+    toast?.success?.('Quote rejected')
+    const saved = localStorage.getItem('orders')
+    if (saved) {
+      const orders = JSON.parse(saved)
+      const found = orders.find((o: any) => o.id === order.id)
+      setOrder(found || null)
+    }
+  }
+
   return (
     <div className="min-h-screen flex bg-background">
       <DashboardSidebar />
@@ -104,6 +176,28 @@ export default function OrderDetailPage() {
                 <div className="mb-2">Amount: {order?.amount}</div>
               </CardContent>
             </Card>
+
+              {/* Quote block for customers when a quote exists */}
+              {order?.quote && currentUser.role === 'customer' && order?.status === 'quoted' && (
+                <Card className="mb-4 border-yellow-200">
+                  <CardContent>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-semibold">Quote from {order?.tailorName}</h4>
+                        <p className="text-sm text-muted-foreground">{order.quote.message}</p>
+                        <div className="mt-2">
+                          <span className="text-lg font-semibold">₹{order.quote.price}</span>
+                          <span className="text-sm text-muted-foreground ml-3">• {order.quote.days} days</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Button onClick={acceptQuote} className="bg-gradient-to-r from-gold-600 to-gold-500">Accept & Pay Deposit</Button>
+                        <Button variant="outline" onClick={rejectQuote}>Reject</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
             <Card>
               <CardContent className="p-0">

@@ -176,14 +176,14 @@ export default function Navbar() {
                         <p className="text-xs text-muted-foreground capitalize">{currentUser?.role}</p>
                       </div>
                       <div className="p-1">
-                        <Link
-                          to="/dashboard"
-                          className="flex items-center px-3 py-2 text-sm hover:bg-accent rounded-md"
-                          onClick={() => setUserMenuOpen(false)}
-                        >
-                          <LayoutDashboard className="mr-2 h-4 w-4" />
-                          Dashboard
-                        </Link>
+                                <Link
+                                  to={currentUser?.role === 'tailor' ? '/tailor-dashboard' : '/dashboard'}
+                                  className="flex items-center px-3 py-2 text-sm hover:bg-accent rounded-md"
+                                  onClick={() => setUserMenuOpen(false)}
+                                >
+                                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                                  Dashboard
+                                </Link>
                         <Link
                           to="/profile"
                           className="flex items-center px-3 py-2 text-sm hover:bg-accent rounded-md"
@@ -263,7 +263,7 @@ export default function Navbar() {
               </Link>
               {isAuthenticated ? (
                 <>
-                  <Link to="/dashboard" className="block py-2" onClick={() => setMobileMenuOpen(false)}>
+                  <Link to={currentUser?.role === 'tailor' ? '/tailor-dashboard' : '/dashboard'} className="block py-2" onClick={() => setMobileMenuOpen(false)}>
                     Dashboard
                   </Link>
                   <button onClick={handleLogout} className="block w-full text-left py-2 text-destructive">

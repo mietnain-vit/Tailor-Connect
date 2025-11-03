@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getInitials } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import storage from '@/utils/storage'
 
 export default function ProfilePage() {
   const { currentUser, updateUser, isAuthenticated } = useAuth()
@@ -37,6 +38,31 @@ export default function ProfilePage() {
       setAvatar(currentUser.avatar || null)
     }
   }, [currentUser, isAuthenticated, navigate])
+
+  // tailor portfolio
+  const [portfolio, setPortfolio] = useState<any[]>([])
+
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'tailor') {
+      const list = storage.getPortfolio(String(currentUser.id))
+      setPortfolio(list)
+    }
+  }, [currentUser])
+
+  const onPortfolioDrop = (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0]
+    if (!file || !currentUser) return
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const data = reader.result as string
+      const updated = storage.addPortfolioItem(String(currentUser.id), { data, title: file.name })
+      setPortfolio(updated)
+      toast.success('Portfolio image uploaded')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const { getRootProps: getPortfolioRoot, getInputProps: getPortfolioInput } = useDropzone({ onDrop: onPortfolioDrop, accept: { 'image/*': [] }, maxFiles: 1 })
 
   const onDrop = (acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
@@ -276,6 +302,49 @@ export default function ProfilePage() {
                       <p className="font-semibold">250</p>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Tailor Portfolio */}
+          {currentUser.role === 'tailor' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Portfolio</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div {...getPortfolioRoot()} className="border-dashed border-2 rounded p-4 text-center cursor-pointer mb-4">
+                    <input {...getPortfolioInput()} />
+                    <p className="text-sm text-muted-foreground">Click or drag an image here to add to your portfolio</p>
+                  </div>
+
+                  {portfolio.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No portfolio items yet.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {portfolio.map((p: any) => (
+                        <div key={p.id} className="rounded overflow-hidden border">
+                          <img src={p.data} alt={p.title} className="w-full h-32 object-cover" />
+                          <div className="p-2 flex items-center justify-between">
+                            <p className="text-xs truncate">{p.title || 'Image'}</p>
+                            <button
+                              className="text-xs text-destructive"
+                              onClick={() => {
+                                if (!currentUser) return
+                                const updated = storage.removePortfolioItem(String(currentUser.id), p.id)
+                                setPortfolio(updated)
+                                toast.success('Removed portfolio item')
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

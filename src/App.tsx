@@ -16,6 +16,7 @@ import FavoritesPage from './pages/FavoritesPage'
 import AdminPanelPage from './pages/AdminPanelPage'
 import TailorWorkbenchPage from './pages/TailorWorkbenchPage'
 import TailorDashboard from './pages/TailorDashboard'
+import PayoutsPage from './pages/PayoutsPage'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import FAQPage from './pages/FAQPage'
@@ -116,6 +117,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="tailor">
               <TailorWorkbenchPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payouts"
+          element={
+            <ProtectedRoute requiredRole="tailor">
+              <PayoutsPage />
             </ProtectedRoute>
           }
         />

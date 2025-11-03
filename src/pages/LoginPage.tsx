@@ -42,9 +42,16 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       await login(data.email, data.password)
-      // Prefer role from authenticated user; fallback to selected role from form
-      const role = (currentUser && (currentUser as any).role) || data.role
-      if (role === 'tailor') navigate('/tailor-dashboard')
+      // Prefer role from persisted currentUser in localStorage (login may update auth state async)
+      const raw = localStorage.getItem('currentUser')
+      let resolvedRole = data.role
+      try {
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (parsed && parsed.role) resolvedRole = parsed.role
+        }
+      } catch { /* ignore */ }
+      if (resolvedRole === 'tailor') navigate('/tailor-dashboard')
       else navigate('/dashboard')
     } catch (error) {
       // Error handled by AuthContext
