@@ -18,6 +18,7 @@ import TailorWorkbenchPage from './pages/TailorWorkbenchPage'
 import TailorDashboard from './pages/TailorDashboard'
 import PayoutsPage from './pages/PayoutsPage'
 import AdminPayoutsPage from './pages/AdminPayoutsPage'
+import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import FAQPage from './pages/FAQPage'
@@ -134,6 +135,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminPayoutsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payments/success"
+          element={
+            <ProtectedRoute>
+              <PaymentSuccessPage />
             </ProtectedRoute>
           }
         />

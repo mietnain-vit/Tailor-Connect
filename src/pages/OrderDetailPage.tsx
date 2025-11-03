@@ -108,29 +108,26 @@ export default function OrderDetailPage() {
     const price = Number(order.quote.price || order.amount || 0)
     const deposit = Math.round(price * (percent / 100))
     try {
-      await payments.processDeposit(order.id, deposit)
-      storage.updateOrder(order.id, { status: 'in-progress', paid: true, depositAmount: deposit, amount: price })
-      // notify tailor
-      storage.addNotification('tailor', {
-        id: Date.now(),
-        title: `Quote accepted for ${order.id}`,
-        body: `Customer accepted the quote. Deposit ₹${deposit} received.`,
-        time: new Date().toISOString(),
-        orderId: String(order.id),
-        url: `/orders/${order.id}`,
-        read: false,
+      // Create a Stripe Checkout session on the server and redirect the user
+  // support environments where import.meta.env typing isn't available
+  // @ts-ignore
+  const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4242'
+      const resp = await fetch(`${apiBase.replace(/\/$/, '')}/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, amount: deposit, currency: 'inr' }),
       })
-      toast.success('Quote accepted — deposit processed')
-      setShowDepositModal(false)
-      // refresh local order state
-      const saved = localStorage.getItem('orders')
-      if (saved) {
-        const orders = JSON.parse(saved)
-        const found = orders.find((o: any) => o.id === order.id)
-        setOrder(found || null)
+      const data = await resp.json()
+      if (data?.url) {
+        // redirect user to Stripe Checkout
+        window.location.href = data.url
+      } else {
+        console.error('create-checkout-session response', data)
+        toast.error('Failed to create checkout session')
       }
     } catch (e) {
-      toast.error('Failed to process deposit')
+      console.error(e)
+      toast.error('Failed to create checkout session')
     }
   }
 
