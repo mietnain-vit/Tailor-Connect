@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext'
 import storage, { Message } from '@/utils/storage'
 import payments from '@/utils/payments'
 import toast from 'react-hot-toast'
+import StripeCardModal from '@/components/StripeCardModal'
 
 export default function OrderDetailPage() {
   const { id } = useParams()
@@ -176,10 +177,7 @@ export default function OrderDetailPage() {
       <DashboardSidebar />
       {/* Stripe Elements modal when using PaymentIntents */}
       {showCardModal && clientSecret && order && (
-        // Lazy-load Stripe components to avoid build-time dependency if not used
-        <div>
-          {/* The Stripe provider is required by StripeCardModal; consumer should ensure stripe is loaded in app root. */}
-        </div>
+        <StripeCardModal clientSecret={clientSecret} orderId={String(order.id)} onClose={() => { setShowCardModal(false); setClientSecret(null) }} />
       )}
       <main className="flex-1 p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
