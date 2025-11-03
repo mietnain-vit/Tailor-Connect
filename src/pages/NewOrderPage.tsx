@@ -131,6 +131,7 @@ export default function NewOrderPage() {
   }
 
   const onSubmit = (data: OrderFormData) => {
+    console.debug('NewOrder onSubmit called', data)
     const ordersCount = JSON.parse(localStorage.getItem('orders') || '[]').length
     const newOrderId = 'ORD-' + String(ordersCount + 1).padStart(3, '0')
     const newOrder: any = {
@@ -198,6 +199,14 @@ export default function NewOrderPage() {
 
     // Run checkout flow in background (fallback)
     void doCheckout()
+  }
+
+  const onSubmitError = (errs: any) => {
+    console.warn('NewOrder validation errors', errs)
+    // collect first error message to show to user
+    const firstKey = errs && Object.keys(errs)[0]
+    const msg = firstKey ? errs[firstKey]?.message || 'Please fix validation errors' : 'Please fix validation errors'
+    toast.error(String(msg))
   }
 
   const steps = [
@@ -268,8 +277,10 @@ export default function NewOrderPage() {
           </CardContent>
         </Card>
 
-        {/* Form Content */}
-        <form onSubmit={handleSubmit(onSubmit)}>
+  {/* Form Content */}
+        <form onSubmit={handleSubmit(onSubmit, onSubmitError)}>
+          {/* hidden field so react-hook-form knows about selected tailor id for validation */}
+          <input type="hidden" {...register('tailorId' as any)} />
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div
