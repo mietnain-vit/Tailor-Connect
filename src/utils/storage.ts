@@ -251,8 +251,10 @@ const fullExport = {
   savePortfolio,
   addPortfolioItem,
   removePortfolioItem,
+  uploadPortfolioItem,
   getPayouts,
   recordPayout,
+  approvePayout,
   storage,
   sessionStorage,
 }
