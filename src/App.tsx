@@ -15,6 +15,7 @@ import TailorProfilePage from './pages/TailorProfilePage'
 import FavoritesPage from './pages/FavoritesPage'
 import AdminPanelPage from './pages/AdminPanelPage'
 import TailorWorkbenchPage from './pages/TailorWorkbenchPage'
+import TailorDashboard from './pages/TailorDashboard'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import FAQPage from './pages/FAQPage'
@@ -115,6 +116,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="tailor">
               <TailorWorkbenchPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tailor-dashboard"
+          element={
+            <ProtectedRoute requiredRole="tailor">
+              <TailorDashboard />
             </ProtectedRoute>
           }
         />
