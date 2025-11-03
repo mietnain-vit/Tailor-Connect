@@ -65,6 +65,17 @@ export default function PaymentsCheckoutPage() {
               <div className="flex items-center gap-3">
                 <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 <div>{loadingMsg || 'Preparing payment…'}</div>
+                <div className="ml-4">
+                  <button
+                    className="px-3 py-1 rounded border hover:bg-muted"
+                    onClick={() => {
+                      // allow user to cancel and return to order page
+                      try { navigate(`/orders/${orderId}`) } catch { navigate('/dashboard') }
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ) : (
               <div>
