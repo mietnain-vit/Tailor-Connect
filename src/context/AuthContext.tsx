@@ -228,6 +228,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name,
         email,
         role: role as any,
+        // default settings for new customers and tailors
+        settings: (role === USER_ROLES.CUSTOMER) ? {
+          notifications: { email: true, sms: false, push: true },
+          currency: 'INR',
+          payoutMethod: 'bank',
+          locale: 'en-IN',
+        } : (role === USER_ROLES.TAILOR) ? {
+          notifications: { email: true, sms: false, push: true },
+          payoutMethod: 'bank',
+          availability: { days: ['Mon','Tue','Wed','Thu','Fri'], hours: '09:00-18:00' },
+          services: ['Custom Tailoring'],
+          priceFrom: 3000,
+          locale: 'en-IN',
+        } : undefined,
+        preferences: (role === USER_ROLES.CUSTOMER) ? { newsletter: true } : (role === USER_ROLES.TAILOR) ? { discoverable: true } : undefined,
+        profileComplete: false,
+        onboarding: (role === USER_ROLES.CUSTOMER) ? { isNewCustomer: true, completed: false } : (role === USER_ROLES.TAILOR) ? { isNewTailor: true, completed: false } : undefined,
       }
       setCurrentUser(userData)
       localStorage.setItem('currentUser', JSON.stringify(userData))

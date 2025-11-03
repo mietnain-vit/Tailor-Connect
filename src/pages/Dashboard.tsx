@@ -15,6 +15,7 @@ import { useAuth } from '@/context/AuthContext'
 import DashboardSidebar from '@/components/DashboardSidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import DashboardOverview from '@/components/DashboardOverview'
+import CustomerOnboarding from './CustomerOnboarding'
 import { Button } from '@/components/ui/button'
 // charts moved to DashboardOverview
 import { formatDate, formatCurrency } from '@/lib/utils'
@@ -65,6 +66,11 @@ export default function Dashboard() {
   if (!currentUser) return null
 
   const isCustomer = currentUser.role === USER_ROLES.CUSTOMER
+
+  // If a new customer hasn't completed onboarding yet, show the onboarding page
+  if (isCustomer && currentUser.onboarding && currentUser.onboarding.isNewCustomer) {
+    return <CustomerOnboarding />
+  }
 
   // Stats calculation
   const stats = isCustomer 

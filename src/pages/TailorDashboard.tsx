@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import DashboardSidebar from '@/components/DashboardSidebar'
+import TailorOnboarding from './TailorOnboarding'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import storage from '@/utils/storage'
@@ -38,7 +39,15 @@ export default function TailorDashboard() {
 
   if (!currentUser || !isAuthenticated) return null
 
+  // Render tailor onboarding if this is a newly created tailor
+  if (currentUser.onboarding && (currentUser.onboarding.isNewTailor)) {
+    return <TailorOnboarding />
+  }
+
   const myOrders = useMemo(() => orders.filter(o => (o.assignedTailorId && String(o.assignedTailorId) === String(currentUser.id)) || o.tailorName === currentUser.name), [orders, currentUser])
+
+  // Orders specifically assigned to this tailor (used for new requests)
+  const assignedOrders = useMemo(() => orders.filter(o => String(o.assignedTailorId) === String(currentUser.id)), [orders, currentUser])
 
   const stats = useMemo(() => {
     return {
@@ -133,35 +142,32 @@ export default function TailorDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* New Requests: only show orders explicitly assigned to this tailor */}
           <Card>
             <CardHeader>
-              <CardTitle>Orders Pipeline</CardTitle>
+              <CardTitle>New Requests</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {['pending','in-progress','ready','completed'].map(status => (
-                  <div key={status}>
-                    <h4 className="font-medium capitalize mb-2">{status.replace('-', ' ')}</h4>
-                    <div className="space-y-2">
-                      {myOrders.filter(o => (o.status || 'pending') === status).slice(0,5).map(o => (
-                        <div key={o.id} className="p-2 border rounded flex items-center justify-between">
-                          <div>
-                            <div className="font-medium">{o.id} — {o.item}</div>
-                            <div className="text-xs text-muted-foreground">{formatDate(o.date)}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm font-semibold">{formatCurrency(o.amount)}</div>
-                            {status !== 'ready' && <Button size="sm" variant="outline" onClick={() => markOrderReady(o.id)}>Mark Ready</Button>}
-                            <Button size="sm" asChild>
-                              <Link to={`/orders/${o.id}`}>Open</Link>
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                      {myOrders.filter(o => (o.status || 'pending') === status).length === 0 && (<div className="text-sm text-muted-foreground">No orders</div>)}
+                {assignedOrders.filter(o => (o.status || 'pending') === 'pending').length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No new requests assigned to you</div>
+                ) : (
+                  assignedOrders.filter(o => (o.status || 'pending') === 'pending').slice(0,8).map(o => (
+                    <div key={o.id} className="p-2 border rounded flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{o.id} — {o.item}</div>
+                        <div className="text-xs text-muted-foreground">{formatDate(o.date)}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-semibold">{formatCurrency(o.amount)}</div>
+                        <Button size="sm" variant="outline" onClick={() => markOrderReady(o.id)}>Mark Ready</Button>
+                        <Button size="sm" asChild>
+                          <Link to={`/orders/${o.id}`}>Open</Link>
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

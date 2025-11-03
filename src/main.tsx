@@ -9,6 +9,9 @@ import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
 import { LanguageProvider } from './context/LanguageContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
+// Stripe
+import { Elements } from '@stripe/react-stripe-js'
+import { loadStripe } from '@stripe/stripe-js'
 import './index.css'
 
 const queryClient = new QueryClient({
@@ -21,6 +24,11 @@ const queryClient = new QueryClient({
   },
 })
 
+// Initialize Stripe only if publishable key exists
+// @ts-ignore
+const stripeKey = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY) || ''
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null
+
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
@@ -30,7 +38,14 @@ createRoot(document.getElementById('root')!).render(
             <ThemeProvider>
               <LanguageProvider>
                 <AuthProvider>
-                  <App />
+                  {/* Wrap app with Elements if stripe is configured */}
+                  {stripePromise ? (
+                    <Elements stripe={stripePromise}>
+                      <App />
+                    </Elements>
+                  ) : (
+                    <App />
+                  )}
                   <Toaster
                     position="top-right"
                     toastOptions={{

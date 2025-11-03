@@ -131,12 +131,15 @@ export default function NewOrderPage() {
   }
 
   const onSubmit = (data: OrderFormData) => {
+    console.debug('NewOrder onSubmit called', data)
     const ordersCount = JSON.parse(localStorage.getItem('orders') || '[]').length
     const newOrderId = 'ORD-' + String(ordersCount + 1).padStart(3, '0')
     const newOrder: any = {
       id: newOrderId,
       tailorName: selectedTailor?.name || 'Rajesh Kumar',
       assignedTailorId: selectedTailor?.id ?? null,
+      customerId: currentUser.id,
+      customerName: currentUser.name,
       item: data.itemType,
       status: 'pending',
       date: scheduledDate || new Date().toISOString().split('T')[0],
@@ -156,11 +159,56 @@ export default function NewOrderPage() {
     localStorage.removeItem('order-pending-images')
 
     toast.success('Order placed successfully!')
-    if (depositSelected && newOrder.payment?.deposit) {
-      payments.processDeposit(newOrderId, newOrder.payment.deposit)
-      toast.success('Deposit processed (demo)')
+
+    // If deposit selected, create a Stripe Checkout session and redirect to Stripe Checkout
+    const doCheckout = async () => {
+      try {
+        if (depositSelected && newOrder.payment?.deposit) {
+          // api base from Vite env or fallback
+          // @ts-ignore
+          const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4244'
+          const resp = await fetch(`${apiBase.replace(/\/$/, '')}/create-checkout-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: newOrderId, amount: newOrder.payment.deposit, currency: 'inr' }),
+          })
+          const data = await resp.json()
+          if (data?.url) {
+            // Redirect the browser to Stripe Checkout
+            window.location.href = data.url
+            return
+          }
+          console.error('create-checkout-session response', data)
+          toast.error('Failed to create checkout session')
+          navigate('/dashboard')
+          return
+        }
+
+        // No deposit — just go to dashboard
+        navigate('/dashboard')
+      } catch (err) {
+        console.error('checkout error', err)
+        toast.error('Failed to start payment')
+        navigate('/dashboard')
+      }
     }
-    navigate('/dashboard')
+
+    // Navigate to the payments checkout page which will create the session and redirect to Stripe
+    if (depositSelected && newOrder.payment?.deposit) {
+      navigate(`/payments/checkout?orderId=${encodeURIComponent(newOrderId)}&amount=${encodeURIComponent(String(newOrder.payment.deposit))}`)
+      return
+    }
+
+    // Run checkout flow in background (fallback)
+    void doCheckout()
+  }
+
+  const onSubmitError = (errs: any) => {
+    console.warn('NewOrder validation errors', errs)
+    // collect first error message to show to user
+    const firstKey = errs && Object.keys(errs)[0]
+    const msg = firstKey ? errs[firstKey]?.message || 'Please fix validation errors' : 'Please fix validation errors'
+    toast.error(String(msg))
   }
 
   const steps = [
@@ -231,8 +279,10 @@ export default function NewOrderPage() {
           </CardContent>
         </Card>
 
-        {/* Form Content */}
-        <form onSubmit={handleSubmit(onSubmit)}>
+  {/* Form Content */}
+        <form onSubmit={handleSubmit(onSubmit, onSubmitError)}>
+          {/* hidden field so react-hook-form knows about selected tailor id for validation */}
+          <input type="hidden" {...register('tailorId' as any)} />
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div
