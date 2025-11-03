@@ -19,6 +19,7 @@ import TailorDashboard from './pages/TailorDashboard'
 import PayoutsPage from './pages/PayoutsPage'
 import AdminPayoutsPage from './pages/AdminPayoutsPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
+import PaymentsCheckoutPage from './pages/PaymentsCheckoutPage'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import FAQPage from './pages/FAQPage'
@@ -143,6 +144,14 @@ function App() {
           element={
             <ProtectedRoute>
               <PaymentSuccessPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payments/checkout"
+          element={
+            <ProtectedRoute>
+              <PaymentsCheckoutPage />
             </ProtectedRoute>
           }
         />

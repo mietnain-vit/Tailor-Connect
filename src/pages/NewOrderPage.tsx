@@ -156,11 +156,48 @@ export default function NewOrderPage() {
     localStorage.removeItem('order-pending-images')
 
     toast.success('Order placed successfully!')
-    if (depositSelected && newOrder.payment?.deposit) {
-      payments.processDeposit(newOrderId, newOrder.payment.deposit)
-      toast.success('Deposit processed (demo)')
+
+    // If deposit selected, create a Stripe Checkout session and redirect to Stripe Checkout
+    const doCheckout = async () => {
+      try {
+        if (depositSelected && newOrder.payment?.deposit) {
+          // api base from Vite env or fallback
+          // @ts-ignore
+          const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4242'
+          const resp = await fetch(`${apiBase.replace(/\/$/, '')}/create-checkout-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: newOrderId, amount: newOrder.payment.deposit, currency: 'inr' }),
+          })
+          const data = await resp.json()
+          if (data?.url) {
+            // Redirect the browser to Stripe Checkout
+            window.location.href = data.url
+            return
+          }
+          console.error('create-checkout-session response', data)
+          toast.error('Failed to create checkout session')
+          navigate('/dashboard')
+          return
+        }
+
+        // No deposit — just go to dashboard
+        navigate('/dashboard')
+      } catch (err) {
+        console.error('checkout error', err)
+        toast.error('Failed to start payment')
+        navigate('/dashboard')
+      }
     }
-    navigate('/dashboard')
+
+    // Navigate to the payments checkout page which will create the session and redirect to Stripe
+    if (depositSelected && newOrder.payment?.deposit) {
+      navigate(`/payments/checkout?orderId=${encodeURIComponent(newOrderId)}&amount=${encodeURIComponent(String(newOrder.payment.deposit))}`)
+      return
+    }
+
+    // Run checkout flow in background (fallback)
+    void doCheckout()
   }
 
   const steps = [
