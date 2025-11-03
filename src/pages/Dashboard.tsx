@@ -40,7 +40,13 @@ export default function Dashboard() {
       navigate('/login')
       return
     }
-    
+
+    // If the logged-in user is a tailor, redirect them to the tailor dashboard
+    if (currentUser && currentUser.role !== USER_ROLES.CUSTOMER) {
+      navigate('/tailor-dashboard')
+      return
+    }
+
     const savedOrders = localStorage.getItem('orders')
     if (savedOrders) {
       setOrders(JSON.parse(savedOrders))
