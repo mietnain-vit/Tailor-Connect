@@ -113,6 +113,43 @@ export function removePortfolioItem(tailorId: string, itemId: number | string) {
   return updated
 }
 
+// Upload abstraction: try external upload endpoint (Vite env VITE_UPLOAD_URL), else save base64 like before
+export async function uploadPortfolioItem(tailorId: string, file: File) {
+  const uploadUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_UPLOAD_URL) ? (import.meta as any).env.VITE_UPLOAD_URL : ''
+  if (uploadUrl) {
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(uploadUrl, { method: 'POST', body: form })
+      if (!res.ok) throw new Error('Upload failed')
+      const json = await res.json()
+      const url = json.url || json.fileUrl || json.key || ''
+      const list = getPortfolio(tailorId)
+      const entry = { id: Date.now(), data: url, title: file.name, time: new Date().toISOString() }
+      list.unshift(entry)
+      savePortfolio(tailorId, list)
+      return list
+    } catch (e) {
+      // fallthrough to base64 fallback
+      console.warn('uploadPortfolioItem external upload failed, falling back to base64', e)
+    }
+  }
+
+  // Fallback: read file to base64 and add
+  return new Promise<any[]>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const data = reader.result as string
+        const updated = addPortfolioItem(tailorId, { data, title: file.name })
+        resolve(updated)
+      } catch (err) { reject(err) }
+    }
+    reader.onerror = (err) => reject(err)
+    reader.readAsDataURL(file)
+  })
+}
+
 // Reviews
 export function getReviews(tailorId: string) {
   try { return JSON.parse(localStorage.getItem(`tailor-reviews-${tailorId}`) || '[]') } catch { return [] }
@@ -136,6 +173,13 @@ export function recordPayout(tailorId: string, payout: { id?: number | string, a
   list.unshift(entry)
   localStorage.setItem(`payouts-${tailorId}`, JSON.stringify(list))
   return list
+}
+
+export function approvePayout(tailorId: string, payoutId: number | string, newStatus: string = 'approved') {
+  const list = getPayouts(tailorId)
+  const updated = list.map((p: any) => (String(p.id) === String(payoutId) ? { ...p, status: newStatus, processedAt: new Date().toISOString() } : p))
+  localStorage.setItem(`payouts-${tailorId}`, JSON.stringify(updated))
+  return updated
 }
 export const storage = {
   get: <T>(key: string, defaultValue: T): T => {

@@ -49,17 +49,18 @@ export default function ProfilePage() {
     }
   }, [currentUser])
 
-  const onPortfolioDrop = (acceptedFiles: File[]) => {
+  const onPortfolioDrop = async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (!file || !currentUser) return
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const data = reader.result as string
-      const updated = storage.addPortfolioItem(String(currentUser.id), { data, title: file.name })
+    try {
+      // storage.uploadPortfolioItem will attempt external upload if VITE_UPLOAD_URL is set
+      const updated = await (storage as any).uploadPortfolioItem(String(currentUser.id), file)
       setPortfolio(updated)
       toast.success('Portfolio image uploaded')
+    } catch (e) {
+      console.error(e)
+      toast.error('Failed to upload portfolio image')
     }
-    reader.readAsDataURL(file)
   }
 
   const { getRootProps: getPortfolioRoot, getInputProps: getPortfolioInput } = useDropzone({ onDrop: onPortfolioDrop, accept: { 'image/*': [] }, maxFiles: 1 })
