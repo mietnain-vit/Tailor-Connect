@@ -138,6 +138,8 @@ export default function NewOrderPage() {
       id: newOrderId,
       tailorName: selectedTailor?.name || 'Rajesh Kumar',
       assignedTailorId: selectedTailor?.id ?? null,
+      customerId: currentUser.id,
+      customerName: currentUser.name,
       item: data.itemType,
       status: 'pending',
       date: scheduledDate || new Date().toISOString().split('T')[0],

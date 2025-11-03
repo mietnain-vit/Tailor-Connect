@@ -65,6 +65,47 @@ export function addOrder(order: any) {
   const orders = getOrders()
   orders.unshift(order)
   saveOrders(orders)
+  try {
+    // Notify the assigned tailor only (use tailor's user id as notification key if present)
+    if (order.assignedTailorId) {
+      addNotification(String(order.assignedTailorId), {
+        id: Date.now(),
+        title: `New order request ${order.id}`,
+        body: `You have a new order request from ${order.customerName || 'a customer'} for ${order.item}`,
+        time: new Date().toISOString(),
+        orderId: String(order.id),
+        url: `/orders/${order.id}`,
+        read: false,
+      })
+    } else {
+      // If no specific tailor assigned, add a generic 'tailor' notification so tailors browsing the dashboard can see it
+      addNotification('tailor', {
+        id: Date.now(),
+        title: `New order ${order.id}`,
+        body: `A new order was posted: ${order.item}`,
+        time: new Date().toISOString(),
+        orderId: String(order.id),
+        url: `/orders/${order.id}`,
+        read: false,
+      })
+    }
+
+    // Also notify the customer who created the order (if we have a customer id stored)
+    if (order.customerId) {
+      addNotification(String(order.customerId), {
+        id: Date.now() + 1,
+        title: `Order ${order.id} placed`,
+        body: `Your order request for ${order.item} was placed successfully.`,
+        time: new Date().toISOString(),
+        orderId: String(order.id),
+        url: `/orders/${order.id}`,
+        read: false,
+      })
+    }
+  } catch (e) {
+    // ignore notification errors in demo
+    console.warn('notify addOrder error', e)
+  }
   return orders
 }
 

@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import Dashboard from './pages/Dashboard'
+import CustomerOnboarding from './pages/CustomerOnboarding'
 import OrdersPage from './pages/OrdersPage'
 import OrderTrackingPage from './pages/OrderTrackingPage'
 import NewOrderPage from './pages/NewOrderPage'
@@ -16,6 +17,7 @@ import FavoritesPage from './pages/FavoritesPage'
 import AdminPanelPage from './pages/AdminPanelPage'
 import TailorWorkbenchPage from './pages/TailorWorkbenchPage'
 import TailorDashboard from './pages/TailorDashboard'
+import TailorOnboarding from './pages/TailorOnboarding'
 import PayoutsPage from './pages/PayoutsPage'
 import AdminPayoutsPage from './pages/AdminPayoutsPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
@@ -160,6 +162,22 @@ function App() {
           element={
             <ProtectedRoute requiredRole="tailor">
               <TailorDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/onboarding/customer"
+          element={
+            <ProtectedRoute requiredRole="customer">
+              <CustomerOnboarding />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/onboarding/tailor"
+          element={
+            <ProtectedRoute requiredRole="tailor">
+              <TailorOnboarding />
             </ProtectedRoute>
           }
         />
