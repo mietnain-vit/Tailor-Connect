@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardSidebar from '@/components/DashboardSidebar'
+import PaymentsSidebar from '@/components/PaymentsSidebar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -114,8 +115,8 @@ export default function OrderDetailPage() {
       // If configured to use in-app PaymentIntents, create PI and show card modal
       // @ts-ignore
       const usePI = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_USE_PAYMENT_INTENTS) || false
-      // @ts-ignore
-      const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4242'
+  // @ts-ignore
+  const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4244'
       if (usePI === 'true' || usePI === true) {
         const resp = await fetch(`${apiBase.replace(/\/$/, '')}/create-payment-intent`, {
           method: 'POST',
@@ -172,9 +173,15 @@ export default function OrderDetailPage() {
     }
   }
 
+  const showPaymentsSidebar = Boolean(order && order.payment && Number(order.payment.deposit) > 0 && !order.paid)
+
   return (
     <div className="min-h-screen flex bg-background">
-      <DashboardSidebar />
+      {showPaymentsSidebar ? (
+        <PaymentsSidebar orderId={String(order?.id || id)} amount={Number(order?.payment?.deposit || 0)} />
+      ) : (
+        <DashboardSidebar />
+      )}
       {/* Stripe Elements modal when using PaymentIntents */}
       {showCardModal && clientSecret && order && (
         <StripeCardModal clientSecret={clientSecret} orderId={String(order.id)} onClose={() => { setShowCardModal(false); setClientSecret(null) }} />

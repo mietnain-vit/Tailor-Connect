@@ -15,7 +15,7 @@ export default function PaymentSuccessPage() {
     if (!sessionId) return
     ;(async () => {
       try {
-        const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4242'
+  const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4244'
         const res = await fetch(`${apiBase.replace(/\/$/, '')}/checkout-session?sessionId=${encodeURIComponent(sessionId)}`)
         const session = await res.json()
         // metadata.orderId was set when creating the session

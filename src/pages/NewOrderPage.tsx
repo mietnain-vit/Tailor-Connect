@@ -164,7 +164,7 @@ export default function NewOrderPage() {
         if (depositSelected && newOrder.payment?.deposit) {
           // api base from Vite env or fallback
           // @ts-ignore
-          const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4242'
+          const apiBase = (import.meta && (import.meta as any).env && (import.meta as any).env.VITE_API_URL) || 'http://localhost:4244'
           const resp = await fetch(`${apiBase.replace(/\/$/, '')}/create-checkout-session`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
